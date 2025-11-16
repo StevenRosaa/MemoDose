@@ -1,63 +1,85 @@
-'use client'; // FONDAMENTALE: Questa pagina è interattiva (usa "state")
+'use client' // 1. TRASFORMIAMO IN CLIENT COMPONENT
 
-import React, { useState } from 'react';
-import { MedicationList } from '@/components/MedicationList'; // Il nostro componente (passo 4)
-import { AddMedicationDialog } from '@/components/AddMedicationDialog'; // Il nostro pop-up (passo 5)
-import { Medication } from '@/lib/types'; // La nostra interfaccia
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-
-// Dati finti per iniziare (poi arriveranno da Supabase)
-const MOCK_MEDICATIONS: Medication[] = [
-  { id: '1', name: 'Aspirina', dosage: '10mg', time: '08:00' },
-  { id: '2', name: 'Cardio-Sermon', dosage: '1 compressa', time: '13:00' },
-  { id: '3', name: 'Integratore Vitamina D', dosage: '5 gocce', time: '20:00' },
-];
+import { useEffect, useState } from 'react'
+import { useAuth } from '@/components/AuthProvider' // 2. Usiamo il context!
+import { Medication } from '@/lib/types'
+import { MedicationList } from '@/components/MedicationList'
+import { AddMedicationDialog } from '@/components/AddMedicationDialog'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { useRouter } from 'next/navigation'
 
 export default function DashboardPage() {
-  // 🧠 CONCETTO REACT: "useState"
-  // "useState" è un "gancio" (Hook) di React per dare "memoria" a un componente.
-  // Qui, stiamo dicendo: "Voglio che questo componente si ricordi la lista dei farmaci".
-  const [medications, setMedications] = useState<Medication[]>(MOCK_MEDICATIONS);
+  const { session, supabase, isLoading } = useAuth() // 2. Prendiamo isLoading
+  const router = useRouter()
+  
+  const [medications, setMedications] = useState<Medication[]>([])
+  const [isDataLoading, setIsDataLoading] = useState(true) // Caricamento dei farmaci
 
-  // 🧠 CONCETTO REACT: "Passare Funzioni"
-  // Definiamo le funzioni per aggiungere ed eliminare qui, nella pagina principale,
-  // e poi le passiamo come "props" (accessori) ai componenti figli.
+  useEffect(() => {
+    // 3. 🛑 NON FARE NIENTE finché l'auth non è pronto
+    if (isLoading) return; 
 
-  const handleAddMedication = (newMed: Omit<Medication, 'id'>) => {
-    // Creiamo un nuovo farmaco con un ID finto
-    const medicationToAdd = {
-      ...newMed,
-      id: Math.random().toString(36).substring(2, 9),
-    };
+    // 4. Ora siamo sicuri. O è 'null' o è una 'session'.
+    if (session === null) {
+      router.push('/signin')
+      return
+    }
+
+    // 5. Se siamo qui, l'utente è loggato. Carichiamo i dati.
+    const fetchMedications = async () => {
+      setIsDataLoading(true)
+      const { data, error } = await supabase
+        .from('medications')
+        .select('*')
+        .order('time', { ascending: true })
+
+      if (error) {
+        console.error('Error fetching medications:', error)
+      } else {
+        setMedications(data || [])
+      }
+      setIsDataLoading(false)
+    }
+
+    fetchMedications()
     
-    // Aggiorniamo lo "state", e React ridisegnerà la lista!
-    setMedications((prevMeds) => [...prevMeds, medicationToAdd]);
-    // Qui in futuro aggiungeremo la notifica "toast"
-  };
+  }, [session, supabase, router, isLoading]) // 6. Aggiungiamo isLoading
 
-  const handleDeleteMedication = (idToDelete: string) => {
-    setMedications((prevMeds) =>
-      prevMeds.filter((med) => med.id !== idToDelete)
-    );
-    // Qui in futuro aggiungeremo la notifica "toast"
-  };
+  // 7. Mostriamo uno stato di caricamento per l'AUTH
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-8 text-center">
+        Verifica autenticazione...
+      </div>
+    )
+  }
 
-  return (
-    <div className="container mx-auto p-4 md:p-8">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>I tuoi Farmaci</CardTitle>
-          {/* Questo componente aprirà il pop-up */}
-          <AddMedicationDialog onAddMedication={handleAddMedication} />
-        </CardHeader>
-        <CardContent>
-          {/* Questo componente mostrerà la tabella */}
-          <MedicationList
-            medications={medications}
-            onDeleteMedication={handleDeleteMedication}
-          />
-        </CardContent>
-      </Card>
-    </div>
-  );
+  // 8. Mostriamo la dashboard (o il caricamento dei farmaci)
+  if (session) {
+    return (
+      <div className="container mx-auto p-4 md:p-8">
+        <Card>
+          {/* ... (Header e Dialog) ... */}
+          <CardContent>
+            {isDataLoading ? (
+              <div className="text-center p-8">Caricamento farmaci...</div>
+            ) : (
+              <MedicationList
+                medications={medications}
+                onMedicationDeleted={(deletedMedId) => {
+                setMedications((currentMeds) =>
+                currentMeds.filter((med) => med.id !== deletedMedId)
+                )
+              }}
+              />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // 9. Se la sessione è 'null' (e non sta più caricando),
+  // mostriamo null (il redirect è già partito)
+  return null
 }

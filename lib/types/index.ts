@@ -1,6 +1,9 @@
+// src/types/index.ts
 export interface Medication {
-  id: string; // Useremo un ID per poterlo eliminare
+  id: number; // In Supabase bigint, in JS è number
+  created_at?: string; // Aggiunto da Supabase, opzionale
+  user_id: string; // uuid in Supabase è string in JS
   name: string;
-  dosage: string; // Es. "10mg", "1 compressa"
-  time: string; // Es. "08:00"
+  dosage: string | null; // L'abbiamo reso opzionale nel DB
+  time: string; // 'time' in Supabase è una stringa (es. "08:00:00")
 }
