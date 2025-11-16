@@ -7,6 +7,8 @@ import { MedicationList } from '@/components/MedicationList'
 import { AddMedicationDialog } from '@/components/AddMedicationDialog' // Importato
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { useRouter } from 'next/navigation'
+import { NotificationButton } from '@/components/NotificaButton'
+import { TestNotificationButton } from '@/components/TestNotificationButton'
 
 export default function DashboardPage() {
   const { session, supabase, isLoading } = useAuth() // 2. Prendiamo isLoading
@@ -71,6 +73,10 @@ export default function DashboardPage() {
           </CardHeader>
           
           <CardContent>
+            <div className="mb-4">
+              <NotificationButton />
+              <TestNotificationButton />
+            </div>
             {isDataLoading ? (
               <div className="text-center p-8">Caricamento farmaci...</div>
             ) : (
