@@ -1,7 +1,8 @@
-'use client' // 1. OBBLIGATORIO: ora è un Client Component
+'use client'
 
-import React from 'react' // 2. Rimosso useState (non serve qui)
-import { Medication } from '@/lib/types' // Corretto il percorso (era @/lib/types)
+// Import da entrambe le versioni
+import React from 'react'
+import { Medication } from '@/lib/types' // Assicurati che il percorso sia corretto
 import {
   Table,
   TableHeader,
@@ -15,14 +16,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu' // Import corretti
+} from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { MoreHorizontal } from 'lucide-react'
-// Rimosso createClient (non serve, lo prende da useAuth)
 import { toast } from 'sonner'
-import { useAuth } from '@/components/AuthProvider' // 1. Usiamo il context
+import { useAuth } from '@/components/AuthProvider' // Logica "Nuova"
 
-// 2. Definiamo le props
+// Props "Nuove" (con id: number)
 interface MedicationListProps {
   medications: Medication[]
   onMedicationDeleted: (id: number) => void
@@ -32,7 +32,8 @@ export const MedicationList: React.FC<MedicationListProps> = ({
   medications,
   onMedicationDeleted,
 }) => {
-  const { supabase } = useAuth() // 3. Prendiamo solo supabase
+  // Logica "Nuova" per gestire l'eliminazione
+  const { supabase } = useAuth()
 
   const handleDeleteMedication = async (idToDelete: number) => {
     const medToDelete = medications.find((med) => med.id === idToDelete)
@@ -49,22 +50,16 @@ export const MedicationList: React.FC<MedicationListProps> = ({
         description: `"${medToDelete?.name}" è stato rimosso.`,
       })
       
-      // 4. 🚀 REATTIVITÀ: Chiamiamo la funzione del genitore!
+      // Chiamiamo la funzione del genitore (da "Nuova")
       onMedicationDeleted(idToDelete)
     }
   }
-  
-  if (medications.length === 0) {
-    return (
-      <div className="text-center text-muted-foreground p-8">
-        Nessun farmaco ancora aggiunto. Clicca su "Aggiungi Farmaco" per iniziare.
-      </div>
-    )
-  }
 
+
+
+  // JSX "Vecchio" (è questo che volevi)
   return (
     <Table>
-      {/* Aggiunta la testata della tabella (mancava) */}
       <TableHeader>
         <TableRow>
           <TableHead>Farmaco</TableHead>
@@ -73,25 +68,16 @@ export const MedicationList: React.FC<MedicationListProps> = ({
           <TableHead className="text-right">Azioni</TableHead>
         </TableRow>
       </TableHeader>
-
       <TableBody>
-        {/* 5. Mappiamo le props */}
         {medications.map((med) => (
           <TableRow key={med.id}>
-            
-            {/* Aggiunta la cella Nome (mancava) */}
+            {/* NIENTE SPAZI QUI */}
             <TableCell className="font-medium">{med.name}</TableCell>
-            
+            {/* NIENTE SPAZI QUI */}
             <TableCell>{med.dosage || '-'}</TableCell>
+            {/* NIENTE SPAZI QUI */}
             <TableCell>{med.time}</TableCell>
-            
-            {/*
-             *
-             * ✅ ECCO LA CORREZIONE ✅
-             * Hai bisogno dell'intera struttura del menu, 
-             * non solo dell'item.
-             *
-             */}
+            {/* NIENTE SPAZI QUI */}
             <TableCell className="text-right">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -106,11 +92,10 @@ export const MedicationList: React.FC<MedicationListProps> = ({
                   >
                     Elimina
                   </DropdownMenuItem>
-                  {/* (Qui potresti aggiungere "Modifica") */}
                 </DropdownMenuContent>
               </DropdownMenu>
             </TableCell>
-            
+            {/* NIENTE SPAZI QUI */}
           </TableRow>
         ))}
       </TableBody>

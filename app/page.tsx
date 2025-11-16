@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/components/AuthProvider' // 2. Usiamo il context!
-import { Medication } from '@/lib/types'
+import { Medication } from '@/lib/types' // Assicurati che il percorso sia corretto
 import { MedicationList } from '@/components/MedicationList'
-import { AddMedicationDialog } from '@/components/AddMedicationDialog'
+import { AddMedicationDialog } from '@/components/AddMedicationDialog' // Importato
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { useRouter } from 'next/navigation'
 
@@ -59,7 +59,17 @@ export default function DashboardPage() {
     return (
       <div className="container mx-auto p-4 md:p-8">
         <Card>
-          {/* ... (Header e Dialog) ... */}
+          
+          {/* ✅ REINSERITO IL COMPONENTE MANCANTE ✅ */}
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>I tuoi Farmaci</CardTitle>
+            <AddMedicationDialog 
+              onMedicationAdded={(newMed) => {
+                setMedications((currentMeds) => [...currentMeds, newMed])
+              }} 
+            />
+          </CardHeader>
+          
           <CardContent>
             {isDataLoading ? (
               <div className="text-center p-8">Caricamento farmaci...</div>
@@ -67,10 +77,10 @@ export default function DashboardPage() {
               <MedicationList
                 medications={medications}
                 onMedicationDeleted={(deletedMedId) => {
-                setMedications((currentMeds) =>
-                currentMeds.filter((med) => med.id !== deletedMedId)
-                )
-              }}
+                  setMedications((currentMeds) =>
+                    currentMeds.filter((med) => med.id !== deletedMedId)
+                  )
+                }}
               />
             )}
           </CardContent>
@@ -79,7 +89,6 @@ export default function DashboardPage() {
     )
   }
 
-  // 9. Se la sessione è 'null' (e non sta più caricando),
-  // mostriamo null (il redirect è già partito)
+  // 9. Se la sessione è 'null', il redirect è già partito
   return null
 }
