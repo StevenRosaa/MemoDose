@@ -21,5 +21,29 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   // Apri l'app quando l'utente clicca sulla notifica
-  event.waitUntil(clients.openWindow('/')); 
+  // Cerca se c'è già una finestra aperta, altrimenti ne apre una nuova
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+      // Se c'è già una tab aperta, usala
+      for (let client of windowClients) {
+        if (client.url.includes('/') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // Altrimenti apri la home
+      if (clients.openWindow) {
+        return clients.openWindow('/');
+      }
+    })
+  );
+});
+
+// 3. ✅ AGGIUNTA FONDAMENTALE PER PWA (Evento Fetch)
+// La presenza di questo ascoltatore (anche se semplice) dice al browser:
+// "Questa è un'app capace di gestire il traffico di rete".
+// Questo sblocca il banner "Aggiungi a Schermata Home" su Android.
+self.addEventListener('fetch', (event) => {
+  // Per ora lasciamo passare tutte le richieste direttamente alla rete.
+  // Non facciamo caching offline complesso per evitare problemi con i dati live.
+  return;
 });
