@@ -2,31 +2,43 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
-  // 1. Crea client e sessione
+  // 1. Inizializza client e risposta
   const { supabase, response } = createClient(request)
-  const { data: { session } } = await supabase.auth.getSession()
+
+  // 2. ⚠️ IMPORTANTE: Usa getUser() invece di getSession()
+  // getUser() è più sicuro e forza l'aggiornamento dei cookie,
+  // prevenendo il loop infinito su Vercel.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   const path = request.nextUrl.pathname
 
-  // 2. REGOLE DI PROTEZIONE
+  // 3. REGOLE DI REINDIRIZZAMENTO
 
-  // A. Utente NON loggato prova ad accedere a rotte protette (/dashboard)
-  if (!session && path.startsWith('/dashboard')) {
+  // A. Utente NON loggato prova ad andare nella Dashboard
+  if (!user && path.startsWith('/dashboard')) {
     return NextResponse.redirect(new URL('/signin', request.url))
   }
 
-  // B. Utente LOGGATO prova ad accedere a pagine auth (/signin) 
-  //    Opzionale: puoi reindirizzarlo anche se va sulla Home (/)
-  if (session && (path === '/signin')) {
+  // B. Utente LOGGATO prova ad andare al Login
+  if (user && path === '/signin') {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
+  // 4. Aggiorna la sessione e restituisci la risposta con i cookie nuovi
   return response
 }
 
 export const config = {
   matcher: [
-    // Esegui il middleware su tutto tranne file statici e API
-    '/((?!api|_next/static|_next/image|favicon.ico|auth/callback).*)',
+    /*
+     * Applica a tutto TRANNE:
+     * - api routes
+     * - file statici (_next/static, _next/image)
+     * - favicon, manifest, icone
+     * - auth callback (fondamentale per non bloccare il login)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|manifest.json|icon-.*png|auth/callback).*)',
   ],
 }
