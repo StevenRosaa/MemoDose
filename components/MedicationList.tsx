@@ -1,8 +1,7 @@
 'use client'
 
-// Import da entrambe le versioni
 import React from 'react'
-import { Medication } from '@/lib/types' // Assicurati che il percorso sia corretto
+import { Medication } from '@/lib/types'
 import {
   Table,
   TableHeader,
@@ -18,11 +17,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import { MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal, Clock } from 'lucide-react'
 import { toast } from 'sonner'
-import { useAuth } from '@/components/AuthProvider' // Logica "Nuova"
+import { useAuth } from '@/components/AuthProvider'
 
-// Props "Nuove" (con id: number)
 interface MedicationListProps {
   medications: Medication[]
   onMedicationDeleted: (id: number) => void
@@ -32,8 +30,31 @@ export const MedicationList: React.FC<MedicationListProps> = ({
   medications,
   onMedicationDeleted,
 }) => {
-  // Logica "Nuova" per gestire l'eliminazione
   const { supabase } = useAuth()
+
+  // 🕒 FUNZIONE DI CONVERSIONE ORA (Il Cuore della modifica)
+  // Prende l'ora UTC dal DB (es. "12:00:00") e la mostra locale (es. "13:00")
+  const formatLocalTime = (utcTimeString: string) => {
+    if (!utcTimeString) return '--:--';
+
+    // 1. Scomponiamo l'ora del database (che sappiamo essere UTC)
+    const [hours, minutes] = utcTimeString.split(':');
+
+    // 2. Creiamo una data di "oggi"
+    const date = new Date();
+
+    // 3. Impostiamo l'ora UTC su quella data
+    // (Nota: usiamo setUTCHours, non setHours!)
+    date.setUTCHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+    // 4. Chiediamo al browser di formattarla nell'ora locale dell'utente
+    // Questo userà automaticamente il fuso orario del tuo computer (Italia)
+    return date.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false // Usa formato 24h (13:00 invece di 1:00 PM)
+    });
+  }
 
   const handleDeleteMedication = async (idToDelete: number) => {
     const medToDelete = medications.find((med) => med.id === idToDelete)
@@ -49,35 +70,42 @@ export const MedicationList: React.FC<MedicationListProps> = ({
       toast.success('Farmaco eliminato!', {
         description: `"${medToDelete?.name}" è stato rimosso.`,
       })
-      
-      // Chiamiamo la funzione del genitore (da "Nuova")
       onMedicationDeleted(idToDelete)
     }
   }
 
+  if (medications.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground space-y-4">
+        <div className="p-4 bg-muted/50 rounded-full">
+          <Clock className="h-8 w-8 opacity-50" />
+        </div>
+        <p>Nessun farmaco ancora aggiunto.<br/>Clicca su "Aggiungi Farmaco" per iniziare.</p>
+      </div>
+    )
+  }
 
-
-  // JSX "Vecchio" (è questo che volevi)
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Farmaco</TableHead>
           <TableHead>Dosaggio</TableHead>
-          <TableHead>Ora</TableHead>
+          <TableHead>Ora (Locale)</TableHead>
           <TableHead className="text-right">Azioni</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {medications.map((med) => (
           <TableRow key={med.id}>
-            {/* NIENTE SPAZI QUI */}
             <TableCell className="font-medium">{med.name}</TableCell>
-            {/* NIENTE SPAZI QUI */}
             <TableCell>{med.dosage || '-'}</TableCell>
-            {/* NIENTE SPAZI QUI */}
-            <TableCell>{med.time}</TableCell>
-            {/* NIENTE SPAZI QUI */}
+            
+            {/* ✅ QUI USIAMO LA NUOVA FUNZIONE */}
+            <TableCell className="font-mono font-medium">
+              {formatLocalTime(med.time)}
+            </TableCell>
+
             <TableCell className="text-right">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -85,17 +113,16 @@ export const MedicationList: React.FC<MedicationListProps> = ({
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent align="end">
                   <DropdownMenuItem
                     onClick={() => handleDeleteMedication(med.id)}
-                    className="text-destructive focus:text-destructive"
+                    className="text-destructive focus:text-destructive cursor-pointer"
                   >
                     Elimina
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </TableCell>
-            {/* NIENTE SPAZI QUI */}
           </TableRow>
         ))}
       </TableBody>

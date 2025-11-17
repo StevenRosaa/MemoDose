@@ -5,6 +5,8 @@ import './globals.css'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/components/AuthProvider' // 1. IMPORTA IL PROVIDER
 import { Navbar } from '@/components/nav' // La Navbar ora è qui
+import { Footer } from '@/components/footer'
+
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -31,6 +33,8 @@ export default function RootLayout({
           
           <Toaster />
           
+          <Footer/>
+
         </AuthProvider> {/* 2. CHIUDI IL PROVIDER */}
       </body>
     </html>
