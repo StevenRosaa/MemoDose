@@ -2,8 +2,6 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export const createClient = (request: NextRequest) => {
-  // 1. Creiamo una risposta iniziale "vergine"
-  // Copiamo tutti gli header per non perdere informazioni
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -20,11 +18,19 @@ export const createClient = (request: NextRequest) => {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
-            // Impostiamo il cookie sulla RICHIESTA (così il middleware lo vede subito)
+            // 1. Scriviamo il cookie nella RICHIESTA (per farla vedere subito a Vercel/Next.js)
             request.cookies.set(name, value)
-            // Impostiamo il cookie sulla RISPOSTA (così il browser lo salva)
-            response.cookies.set(name, value, options)
           })
+
+          // 2. Ricreamo la risposta per sincronizzarla con la richiesta aggiornata
+          response = NextResponse.next({
+            request,
+          })
+
+          // 3. Scriviamo il cookie nella RISPOSTA (per il browser dell'utente)
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
         },
       },
     }
