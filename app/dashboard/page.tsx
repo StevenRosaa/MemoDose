@@ -5,6 +5,7 @@ import { useAuth } from '@/components/AuthProvider' // 2. Usiamo il context!
 import { Medication } from '@/lib/types' // Assicurati che il percorso sia corretto
 import { MedicationList } from '@/components/MedicationList'
 import { AddMedicationDialog } from '@/components/AddMedicationDialog' // Importato
+import { NotificationButton } from '@/components/NotificaButton'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { useRouter } from 'next/navigation'
 
@@ -63,6 +64,7 @@ export default function DashboardPage() {
           {/* ✅ REINSERITO IL COMPONENTE MANCANTE ✅ */}
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>I tuoi Farmaci</CardTitle>
+            <NotificationButton/>
             <AddMedicationDialog 
               onMedicationAdded={(newMed) => {
                 setMedications((currentMeds) => [...currentMeds, newMed])

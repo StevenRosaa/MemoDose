@@ -4,12 +4,11 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/components/AuthProvider'
 import { toast } from 'sonner'
-import { BellRing, BellOff } from 'lucide-react'
+import { BellRing, BellOff, Loader2 } from 'lucide-react'
 
-// Chiave VAPID (deve essere nel .env.local)
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_KEY!
+// Chiave VAPID
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
 
-// Funzione helper (rimane invariata)
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
@@ -26,83 +25,137 @@ export const NotificationButton = () => {
   const [isSubscribed, setIsSubscribed] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
-  // useEffect per controllare (rimane invariato)
+  // Controlla lo stato all'avvio
   useEffect(() => {
-    if (!session) return;
-    checkSubscription();
-  }, [session]);
+    if (!session) return
+    checkSubscription()
+  }, [session])
 
   const checkSubscription = async () => {
-    if (!('serviceWorker' in navigator) || !('pushManager' in window)) {
-      setIsLoading(false);
-      return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setIsLoading(false)
+      return
     }
-    const registration = await navigator.serviceWorker.ready; // Aspetta che sia pronto
-    const subscription = await registration.pushManager.getSubscription();
-    setIsSubscribed(!!subscription);
-    setIsLoading(false);
-  };
+    const registration = await navigator.serviceWorker.ready
+    const subscription = await registration.pushManager.getSubscription()
+    // Se esiste una subscription nel browser, consideriamo l'utente iscritto
+    setIsSubscribed(!!subscription)
+    setIsLoading(false)
+  }
 
+  // --- LOGICA DI ISCRIZIONE (ATTIVA) ---
   const handleSubscribe = async () => {
-    if (!session) return toast.error('Devi essere loggato.');
-    if (!VAPID_PUBLIC_KEY) return toast.error('Chiave di notifica non configurata.');
-
-    setIsLoading(true);
-
+    setIsLoading(true)
     try {
-      // 1. Chiedi il permesso
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        throw new Error('Permesso non concesso.');
-      }
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') throw new Error('Permesso negato')
 
-      // 2. Registra il Service Worker (questo avvia solo il processo)
-      await navigator.serviceWorker.register('/sw.js');
-      
-      // 3. ⚡ LA CORREZIONE È QUI ⚡
-      // Aspetta che il Service Worker sia PRONTO e ATTIVO
-      const swRegistration = await navigator.serviceWorker.ready;
+      await navigator.serviceWorker.register('/sw.js')
+      const swRegistration = await navigator.serviceWorker.ready
 
-      // 4. Ottieni la "subscription" (ora 'swRegistration' è attivo)
       const subscription = await swRegistration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-      });
+      })
 
-      // 5. Salva l'iscrizione sul DB
+      // Salva nel DB
       const { error } = await supabase.from('subscriptions').insert({
-        user_id: session.user.id,
+        user_id: session?.user.id,
         subscription_details: subscription.toJSON(),
-      });
+      })
 
-      if (error) throw error;
+      if (error) throw error
 
-      toast.success('Notifiche abilitate!');
-      setIsSubscribed(true);
+      toast.success('Notifiche abilitate!')
+      setIsSubscribed(true)
     } catch (err) {
-      console.error(err);
-      toast.error('Impossibile abilitare le notifiche', {
-        description: (err as Error).message,
-      });
+      console.error(err)
+      toast.error('Errore attivazione notifiche')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
-  // Il JSX del bottone (rimane invariato)
+  // --- LOGICA DI DISISCRIZIONE (DISATTIVA) ---
+  const handleUnsubscribe = async () => {
+    setIsLoading(true)
+    try {
+      const swRegistration = await navigator.serviceWorker.ready
+      const subscription = await swRegistration.pushManager.getSubscription()
+
+      if (!subscription) {
+        setIsSubscribed(false)
+        setIsLoading(false)
+        return
+      }
+
+      // 1. Rimuovi dal Database (Importante farlo prima di perdere l'endpoint)
+      // Usiamo .match() per trovare la riga che contiene questo specifico endpoint JSON
+      const { error } = await supabase
+        .from('subscriptions')
+        .delete()
+        .match({ user_id: session?.user.id })
+        // Questo filtro cerca dentro il JSONB la chiave 'endpoint' che corrisponde a quella attuale
+        .contains('subscription_details', { endpoint: subscription.endpoint })
+
+      if (error) {
+        console.error('Errore rimozione DB:', error)
+        // Non blocchiamo la disiscrizione locale anche se il DB fallisce
+      }
+
+      // 2. Rimuovi dal Browser
+      await subscription.unsubscribe()
+
+      toast.success('Notifiche disattivate.')
+      setIsSubscribed(false)
+    } catch (err) {
+      console.error(err)
+      toast.error('Impossibile disattivare le notifiche')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Gestore del Click (Toggle)
+  const handleClick = () => {
+    if (!session) {
+      toast.error('Devi essere loggato.')
+      return
+    }
+    if (isSubscribed) {
+      handleUnsubscribe()
+    } else {
+      handleSubscribe()
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <Button variant="outline" size="sm" disabled>
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Caricamento...
+      </Button>
+    )
+  }
+
   return (
     <Button 
-      onClick={handleSubscribe} 
-      disabled={isLoading || isSubscribed}
-      variant="outline"
+      onClick={handleClick} 
+      variant={isSubscribed ? "secondary" : "outline"} // Cambia stile se attivo
       size="sm"
+      className={isSubscribed ? "text-muted-foreground" : ""}
     >
       {isSubscribed ? (
-        <BellOff className="mr-2 h-4 w-4" />
+        <>
+          <BellOff className="mr-2 h-4 w-4" />
+          Disattiva Notifiche
+        </>
       ) : (
-        <BellRing className="mr-2 h-4 w-4" />
+        <>
+          <BellRing className="mr-2 h-4 w-4" />
+          Attiva Notifiche
+        </>
       )}
-      {isSubscribed ? 'Notifiche Abilitate' : 'Attiva Notifiche'}
     </Button>
-  );
-};
+  )
+}
