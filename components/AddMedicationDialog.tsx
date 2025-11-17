@@ -12,12 +12,12 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Medication } from '@/lib/types' // Assicurati che il percorso sia corretto (es. '@/types')
+// Assicurati che questo import punti al tuo file types corretto
+import { Medication } from '@/lib/types' 
 import { useAuth } from '@/components/AuthProvider'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 
-// Definiamo le props che il componente riceve
 interface AddMedicationDialogProps {
   onMedicationAdded: (newMed: Medication) => void
 }
@@ -25,22 +25,19 @@ interface AddMedicationDialogProps {
 export const AddMedicationDialog: React.FC<AddMedicationDialogProps> = ({
   onMedicationAdded,
 }) => {
-  const { supabase, session } = useAuth() // Prendiamo supabase e session
-
-  // State *interno* per gestire il form
+  const { supabase, session } = useAuth()
+  
   const [name, setName] = useState('')
   const [dosage, setDosage] = useState('')
-  const [time, setTime] = useState('')
+  const [time, setTime] = useState('') // Qui c'è l'ora locale (es. "13:00")
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async () => {
-    // 4. Controllo sessione
     if (!session) {
       toast.error('Errore', { description: 'Devi essere loggato.' })
       return
     }
-    // Controllo campi
     if (!name || !time) {
       toast.error('Errore', { description: 'Nome e Ora sono obbligatori.' })
       return
@@ -48,17 +45,34 @@ export const AddMedicationDialog: React.FC<AddMedicationDialogProps> = ({
     
     setIsLoading(true)
 
-    // 5. CHIAMATA A SUPABASE (INSERT)
+    // 🕒 1. CONVERSIONE TEMPO (Locale -> UTC)
+    // Prendiamo l'ora inserita dall'utente (es. "13:02")
+    const [hours, minutes] = time.split(':')
+    
+    // Creiamo una data di oggi con quell'ora locale
+    const dateObj = new Date()
+    dateObj.setHours(parseInt(hours), parseInt(minutes), 0, 0)
+
+    // Estraiamo l'ora UTC corrispondente (es. "12:02")
+    const utcHours = dateObj.getUTCHours().toString().padStart(2, '0')
+    const utcMinutes = dateObj.getUTCMinutes().toString().padStart(2, '0')
+    
+    // Questa è la stringa che salveremo nel DB (es. "12:02:00")
+    const timeToSave = `${utcHours}:${utcMinutes}:00`
+
+    console.log(`Ora Locale: ${time}, Ora Salvata (UTC): ${timeToSave}`) // Debug log
+
+    // 🚀 2. CHIAMATA A SUPABASE
     const { data, error } = await supabase
       .from('medications')
       .insert({
         name: name,
-        dosage: dosage || null, // Salva null se la stringa è vuota
-        time: time,
+        dosage: dosage || null,
+        time: timeToSave, // Salviamo l'orario convertito!
         user_id: session.user.id,
       })
-      .select() // 6. Chiediamo di restituire la riga creata
-      .single() // ...come singolo oggetto
+      .select()
+      .single()
 
     setIsLoading(false)
 
@@ -67,10 +81,11 @@ export const AddMedicationDialog: React.FC<AddMedicationDialogProps> = ({
     } else if (data) {
       toast.success('Farmaco aggiunto!', { description: `"${name}" aggiunto.` })
       
-      // 7. REATTIVITÀ: Chiamiamo la funzione del genitore (page.tsx)
+      // Passiamo il dato al genitore così com'è (con ora UTC)
+      // Il componente MedicationList si occuperà di riconvertirlo per visualizzarlo
       onMedicationAdded(data)
 
-      // Reset del form e chiusura
+      // Reset
       setName('')
       setDosage('')
       setTime('')
@@ -78,7 +93,6 @@ export const AddMedicationDialog: React.FC<AddMedicationDialogProps> = ({
     }
   }
 
-  // Questo è il JSX completo dal tuo "vecchio" file
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -119,7 +133,7 @@ export const AddMedicationDialog: React.FC<AddMedicationDialogProps> = ({
             </Label>
             <Input
               id="time"
-              type="time" // Usiamo un input di tipo "time"
+              type="time"
               value={time}
               onChange={(e) => setTime(e.target.value)}
               className="col-span-3"
@@ -127,7 +141,6 @@ export const AddMedicationDialog: React.FC<AddMedicationDialogProps> = ({
           </div>
         </div>
         <DialogFooter>
-          {/* Unica modifica al JSX: aggiunto lo stato 'isLoading' */}
           <Button type="submit" onClick={handleSubmit} disabled={isLoading}>
             {isLoading ? 'Salvataggio...' : 'Salva'}
           </Button>

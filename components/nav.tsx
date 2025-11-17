@@ -17,7 +17,7 @@ export const Navbar = () => {
   return (
     <nav className="flex justify-between items-center w-full h-16 px-4 md:px-8 border-b bg-background text-foreground">
       <Link href="/" className="text-xl font-bold text-primary">
-        PillOra
+        MemoDose
       </Link>
 
       <div className="flex items-center gap-4">
